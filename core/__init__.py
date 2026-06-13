@@ -1,6 +1,8 @@
 """AlphaCore 核心模块。"""
 
+from core.broker import Broker
 from core.data import BaseDataFeed, CSVDataFeed
+from core.engine import BacktestEngine
 from core.models import (
     BarData,
     Order,
@@ -9,6 +11,7 @@ from core.models import (
     OrderType,
     Position,
 )
+from core.strategy import BaseStrategy
 
 __all__ = [
     "BarData",
@@ -19,4 +22,7 @@ __all__ = [
     "OrderStatus",
     "BaseDataFeed",
     "CSVDataFeed",
+    "Broker",
+    "BaseStrategy",
+    "BacktestEngine",
 ]

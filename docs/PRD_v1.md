@@ -124,6 +124,30 @@
 
   * `match_orders(bar: BarData)`: 核心撮合逻辑。在新 bar 到来时执行（见第 4 节数学模型）。
 
+  * `get_net_value() -> float`: 计算账户总净值 = 可用现金 + 所有持仓市值（持仓市值以各标的最近一根已知 K 线的收盘价估算）。
+
+### 3.4 BacktestEngine (回测引擎模块)
+
+* **职责:** 组装并驱动 `DataFeed`、`Broker`、`Strategy` 三大模块，运行完整的回测事件循环，并产出净值曲线。引擎是唯一允许同时持有数据源与策略的协调者，以此保持各模块之间的解耦。
+
+* **核心属性:**
+
+  * `data_feed` (BaseDataFeed): 行情数据源。
+
+  * `broker` (Broker): 撮合与账户模块。
+
+  * `strategy` (BaseStrategy): 用户策略实例。
+
+  * `equity_curve` (List[Tuple[datetime, float]]): 逐根 K 线记录的 (时间戳, 账户净值) 序列。
+
+* **核心方法:**
+
+  * `__init__(data_feed, broker, strategy)`: 组装三大模块。
+
+  * `run() -> List[Tuple[datetime, float]]`: 运行回测主循环并返回净值曲线。
+
+* **主循环时序 (无未来函数保证):** 先调用一次 `strategy.on_init()`，随后对每一根 K 线 `bar` 依次执行：(1) `broker.match_orders(bar)` 以本根开盘价撮合上一根 bar 的挂单（T+1 成交）；(2) `strategy.on_bar(bar)` 触发策略逻辑与下单；(3) 记录本根 bar 收盘后的账户净值。"先撮合、后回调" 的顺序确保 T 时刻发出的订单只能在 T+1 成交。
+
 ---
 
 ## 4. 核心数学模型与风控逻辑 (Critical Logic)
@@ -132,7 +156,7 @@
 
 * 策略在第 T 根 K 线的 `on_bar(bar_T)` 中计算出信号，并发出订单。
 
- *该订单进入队列，**必须**在第 T+1 根 K 线的 `open` (开盘价) 被撮合成交。
+* 该订单进入队列，**必须**在第 T+1 根 K 线的 `open` (开盘价) 被撮合成交。
 
 ### 4.2 滑点与手续费计算模型
 

@@ -18,9 +18,13 @@ AlphaCore/
 ├── core/
 │   ├── __init__.py      # 包导出
 │   ├── models.py        # 核心数据模型 (BarData / Order / Position + 枚举状态机)
-│   └── data.py          # 数据源模块 (BaseDataFeed 抽象基类 / CSVDataFeed 实现)
+│   ├── data.py          # 数据源模块 (BaseDataFeed 抽象基类 / CSVDataFeed 实现)
+│   ├── broker.py        # 撮合与账户模块 (Broker: 风控 / 撮合 / 结算 / 净值)
+│   ├── strategy.py      # 策略基类 (BaseStrategy: on_init / on_bar / buy / sell)
+│   └── engine.py        # 回测引擎 (BacktestEngine: 驱动主循环 / 净值曲线)
 ├── docs/
 │   └── PRD_v1.md        # 产品需求规格说明书 (唯一事实来源)
+├── tests/               # pytest 测试套件
 ├── requirements.txt
 └── README.md
 ```
@@ -50,7 +54,7 @@ for bar in feed.get_next_bar():
 
 - [x] 核心数据模型 (`core/models.py`)
 - [x] 数据源模块 (`core/data.py`)
-- [ ] 策略基类 (`Strategy`)
-- [ ] 撮合与账户模块 (`Broker`)
-- [ ] 回测引擎主循环
-- [ ] 单元测试 (见 PRD 第 5 节验收标准)
+- [x] 策略基类 (`core/strategy.py`)
+- [x] 撮合与账户模块 (`core/broker.py`)
+- [x] 回测引擎主循环 (`core/engine.py`)
+- [x] 单元测试 (含 PRD 第 5 节验收标准)

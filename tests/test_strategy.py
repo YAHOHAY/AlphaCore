@@ -26,6 +26,7 @@ class _DummyStrategy(BaseStrategy):
 
 
 def make_bar(open_: float = 100.0, close: float = 100.0) -> BarData:
+    """构造一根简单 BarData,供策略测试提供行情与参考价。"""
     return BarData(
         symbol="BTCUSDT",
         datetime=datetime(2025, 1, 1),
@@ -41,22 +42,26 @@ class TestBaseStrategy:
     """策略基类接口与行为。"""
 
     def test_cannot_instantiate_abstract_base(self) -> None:
+        """BaseStrategy 是抽象类(on_bar 未实现),直接实例化应抛 TypeError。"""
         broker = Broker(cash=100_000)
         with pytest.raises(TypeError):
             BaseStrategy(broker)  # type: ignore[abstract]
 
     def test_binds_broker(self) -> None:
+        """策略构造后应正确绑定传入的 broker 实例。"""
         broker = Broker(cash=100_000)
         strategy = _DummyStrategy(broker)
         assert strategy.broker is broker
 
     def test_on_init_hook(self) -> None:
+        """on_init 钩子在被调用前后状态应正确变化(验证生命周期回调可用)。"""
         strategy = _DummyStrategy(Broker(cash=100_000))
         assert strategy.init_called is False
         strategy.on_init()
         assert strategy.init_called is True
 
     def test_buy_submits_pending_order(self) -> None:
+        """buy() 应生成 BUY 方向订单并经 broker 提交,通过风控后进入挂单队列。"""
         broker = Broker(cash=100_000)
         broker.match_orders(make_bar())  # 提供参考价
         strategy = _DummyStrategy(broker)
@@ -68,6 +73,7 @@ class TestBaseStrategy:
         assert order in broker.pending_orders
 
     def test_sell_rejected_without_position(self) -> None:
+        """sell() 应生成 SELL 方向订单;无持仓时被 broker 风控拒单(依赖倒置:策略不自行拦截)。"""
         broker = Broker(cash=100_000)
         broker.match_orders(make_bar())
         strategy = _DummyStrategy(broker)
@@ -78,6 +84,7 @@ class TestBaseStrategy:
         assert order.status == OrderStatus.REJECTED
 
     def test_orders_have_unique_ids(self) -> None:
+        """连续下单时每笔订单的 order_id(UUID)应互不相同。"""
         broker = Broker(cash=100_000)
         broker.match_orders(make_bar())
         strategy = _DummyStrategy(broker)

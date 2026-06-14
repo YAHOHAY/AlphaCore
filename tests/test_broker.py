@@ -54,6 +54,7 @@ class TestSubmitOrderRiskControl:
     """前置风控 (PRD 4.3)。"""
 
     def test_buy_accepted_when_cash_sufficient(self) -> None:
+        """资金充足的买单应通过风控:状态置 PENDING 并进入挂单队列。"""
         broker = Broker(cash=100_000)
         broker.match_orders(make_bar(close=100.0, open_=100.0))  # 提供参考价
 
@@ -63,6 +64,7 @@ class TestSubmitOrderRiskControl:
         assert order in broker.pending_orders
 
     def test_buy_rejected_when_cash_insufficient(self) -> None:
+        """资金不足(close*volume > cash)的买单应被拒,且不进入队列。"""
         broker = Broker(cash=500.0)
         broker.match_orders(make_bar(close=100.0, open_=100.0))
 
@@ -72,6 +74,7 @@ class TestSubmitOrderRiskControl:
         assert order not in broker.pending_orders
 
     def test_buy_rejected_without_reference_price(self) -> None:
+        """尚无任何已知收盘价时(未走过 match_orders),买单无法估算资金,应被拒。"""
         broker = Broker(cash=100_000)
 
         order = broker.submit_order(make_order(OrderDirection.BUY, volume=10.0))
@@ -79,6 +82,7 @@ class TestSubmitOrderRiskControl:
         assert order.status == OrderStatus.REJECTED
 
     def test_sell_rejected_without_position(self) -> None:
+        """无任何持仓时的卖单应被拒(防做空)。"""
         broker = Broker(cash=100_000)
         broker.match_orders(make_bar(close=100.0, open_=100.0))
 
@@ -87,6 +91,7 @@ class TestSubmitOrderRiskControl:
         assert order.status == OrderStatus.REJECTED
 
     def test_sell_rejected_when_position_insufficient(self) -> None:
+        """卖出数量超过当前持仓时应被拒(持仓 5 卖 10 -> REJECTED)。"""
         broker = Broker(cash=100_000)
         broker.match_orders(make_bar(close=100.0, open_=100.0))
         broker.submit_order(make_order(OrderDirection.BUY, volume=5.0))
@@ -101,6 +106,7 @@ class TestMatching:
     """撮合与结算逻辑 (PRD 4.1 / 4.2)。"""
 
     def test_order_filled_at_next_bar_open(self) -> None:
+        """订单在提交后的下一根 bar 以开盘价成交(T+1 撮合,无未来函数)。"""
         broker = Broker(cash=100_000, slippage=0.0, commission=0.0)
         broker.match_orders(make_bar(close=50.0, open_=50.0))
         order = broker.submit_order(make_order(OrderDirection.BUY, volume=10.0))
@@ -115,6 +121,7 @@ class TestMatching:
         assert broker.positions["BTCUSDT"].volume == 10.0
 
     def test_average_price_weighted_on_multiple_buys(self) -> None:
+        """多次买入后持仓均价应为成交价的加权平均(10@100 + 10@200 -> 150)。"""
         broker = Broker(cash=1_000_000, slippage=0.0, commission=0.0)
         broker.match_orders(make_bar(close=100.0, open_=100.0))
         broker.submit_order(make_order(OrderDirection.BUY, volume=10.0))
@@ -127,6 +134,7 @@ class TestMatching:
         assert position.average_price == pytest.approx(150.0)
 
     def test_sell_reduces_position(self) -> None:
+        """卖出部分持仓后,持仓数量应相应减少(持仓 10 卖 4 -> 剩 6)。"""
         broker = Broker(cash=1_000_000, slippage=0.0, commission=0.0)
         broker.match_orders(make_bar(close=100.0, open_=100.0))
         broker.submit_order(make_order(OrderDirection.BUY, volume=10.0))
@@ -137,6 +145,7 @@ class TestMatching:
         assert broker.positions["BTCUSDT"].volume == 6.0
 
     def test_position_removed_when_fully_sold(self) -> None:
+        """持仓被全部卖出后,该标的应从持仓字典中移除。"""
         broker = Broker(cash=1_000_000, slippage=0.0, commission=0.0)
         broker.match_orders(make_bar(close=100.0, open_=100.0))
         broker.submit_order(make_order(OrderDirection.BUY, volume=10.0))
@@ -151,10 +160,12 @@ class TestNetValue:
     """净值计算。"""
 
     def test_net_value_equals_cash_when_no_position(self) -> None:
+        """无持仓时账户净值应等于可用现金。"""
         broker = Broker(cash=100_000)
         assert broker.get_net_value() == 100_000
 
     def test_net_value_includes_position_market_value(self) -> None:
+        """有持仓时净值 = 现金 + 持仓市值(按最近收盘价估算)。"""
         broker = Broker(cash=1_000_000, slippage=0.0, commission=0.0)
         broker.match_orders(make_bar(close=100.0, open_=100.0))
         broker.submit_order(make_order(OrderDirection.BUY, volume=10.0))
@@ -172,6 +183,7 @@ class TestAcceptanceCriteria:
     """
 
     def test_prd_section5_acceptance(self) -> None:
+        """端到端复现 PRD 验收用例:成交价 100.1 / 手续费 0.5005 / 现金 98998.4995。"""
         broker = Broker(cash=100_000, slippage=0.001, commission=0.0005)
 
         # T 日：提供参考价并提交买单

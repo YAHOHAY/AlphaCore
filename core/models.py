@@ -139,3 +139,32 @@ class Position:
     symbol: str
     volume: float
     average_price: float
+
+
+@dataclass
+class Trade:
+    """成交记录 (V2.0)。
+
+    依据 `docs/PRD_v2.md` 第 3.3 节定义，记录每一笔实际成交的明细，由 Broker 在
+    撮合成交时生成。成交记录是绩效分析 (胜率、盈亏比) 与交易复盘的数据基础。
+
+    Attributes:
+        order_id (str): 对应订单号。
+        symbol (str): 交易标的。
+        direction (OrderDirection): 买卖方向。
+        datetime (datetime): 成交时间戳 (撮合所在 K 线时间)。
+        price (float): 真实成交价 (已含滑点)。
+        volume (float): 成交数量。
+        fee (float): 本笔手续费。
+        realized_pnl (float): 已实现盈亏。买入开仓记为 ``0.0``；卖出平仓按均价法
+            计算 ``(成交价 - 持仓均价) * 数量 - 手续费``。默认为 ``0.0``。
+    """
+
+    order_id: str
+    symbol: str
+    direction: OrderDirection
+    datetime: datetime
+    price: float
+    volume: float
+    fee: float
+    realized_pnl: float = 0.0
